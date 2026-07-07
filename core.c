@@ -3,11 +3,31 @@
 #include <string.h>
 #include "models.h"
 
+static void imprimir_espacos(int n) {
+    for (int i = 0; i < n; i++) putchar(' ');
+}
+
+static void imprimir_centralizado(const char *texto, int largura) {
+    int len = texto ? (int)strlen(texto) : 0;
+    if (largura <= 0) return;
+    if (len >= largura) {
+        for (int i = 0; i < largura; i++) putchar(texto[i]);
+        return;
+    }
+    int espaco = largura - len;
+    int esquerda = espaco / 2;
+    int direita = espaco - esquerda;
+    imprimir_espacos(esquerda);
+    if (texto) fputs(texto, stdout);
+    imprimir_espacos(direita);
+}
+
 Sensor *criar_sensor(int codigo, const char *nome, int setor) {
     Sensor *s = malloc(sizeof(Sensor));
     if (!s) return NULL;
     s->codigo = codigo;
-    strcpy(s->nome, nome);
+    strncpy(s->nome, nome, sizeof(s->nome) - 1);
+    s->nome[sizeof(s->nome) - 1] = '\0';
     s->setor = setor;
     s->prox = NULL;
     return s;
@@ -17,8 +37,10 @@ Setor *criar_setor(int codigo, const char *nome, const char *desc) {
     Setor *s = malloc(sizeof(Setor));
     if (!s) return NULL;
     s->codigo = codigo;
-    strcpy(s->nome, nome);
-    strcpy(s->desc, desc);
+    strncpy(s->nome, nome, sizeof(s->nome) - 1);
+    s->nome[sizeof(s->nome) - 1] = '\0';
+    strncpy(s->desc, desc, sizeof(s->desc) - 1);
+    s->desc[sizeof(s->desc) - 1] = '\0';
     s->qtd = 0;
     s->leituras = NULL;
     s->prox = NULL;
@@ -39,8 +61,10 @@ int adicionar_leitura(Setor *listaSetores, int setorCodigo, int sensorCodigo, fl
     lt->setorCodigo = setorCodigo;
     lt->leitura1 = l1;
     lt->leitura2 = l2;
-    strncpy(lt->hora1, h1, sizeof(lt->hora1)-1); lt->hora1[sizeof(lt->hora1)-1] = '\0';
-    strncpy(lt->hora2, h2, sizeof(lt->hora2)-1); lt->hora2[sizeof(lt->hora2)-1] = '\0';
+    strncpy(lt->hora1, h1, sizeof(lt->hora1) - 1);
+    lt->hora1[sizeof(lt->hora1) - 1] = '\0';
+    strncpy(lt->hora2, h2, sizeof(lt->hora2) - 1);
+    lt->hora2[sizeof(lt->hora2) - 1] = '\0';
     lt->prox = s->leituras;
     s->leituras = lt;
     return 1;
@@ -60,25 +84,6 @@ void ler_string(const char *prompt, char *buffer, int tamanho) {
     }
     size_t len = strlen(buffer);
     if (len > 0 && buffer[len - 1] == '\n') buffer[len - 1] = '\0';
-}
-
-void imprimir_espacos(int n) {
-    for (int i = 0; i < n; i++) putchar(' ');
-}
-
-void imprimir_centralizado(const char *texto, int largura) {
-    int len = texto ? strlen(texto) : 0;
-    if (largura <= 0) return;
-    if (len >= largura) {
-        for (int i = 0; i < largura; i++) putchar(texto[i]);
-        return;
-    }
-    int espaco = largura - len;
-    int esquerda = espaco / 2;
-    int direita = espaco - esquerda;
-    imprimir_espacos(esquerda);
-    if (texto) fputs(texto, stdout);
-    imprimir_espacos(direita);
 }
 
 Setor *buscar_setor(Setor *lista, int codigo) {
@@ -125,6 +130,12 @@ Sensor *buscar_sensor(Sensor *lista, int codigo) {
     return NULL;
 }
 
+int buscar_sensor_rec(Sensor *lista, int codigo) {
+    if (!lista) return 0;
+    if (lista->codigo == codigo) return 1;
+    return buscar_sensor_rec(lista->prox, codigo);
+}
+
 void listar_setores(Setor *lista) {
     if (!lista) {
         printf("Nenhum setor cadastrado.\n");
@@ -132,7 +143,7 @@ void listar_setores(Setor *lista) {
     }
     printf("\n===== Lista de Setores =====\n");
     printf("+--------+------------------------------+------------------------------------------+-----+\n");
-    printf("| Codigo |            Nome              |               Descricao                | Qtd |\n");
+    printf("| Codigo | Nome                         | Descricao                                | Qtd |\n");
     printf("+--------+------------------------------+------------------------------------------+-----+\n");
     Setor *aux = lista;
     while (aux) {
@@ -156,7 +167,7 @@ void listar_sensores(Sensor *lista, Setor *listaSetores) {
     }
     printf("\n===== Lista de Sensores =====\n");
     printf("+--------+------------------------------+--------+\n");
-    printf("| Codigo |            Nome              | Setor  |\n");
+    printf("| Codigo | Nome                         | Setor  |\n");
     printf("+--------+------------------------------+--------+\n");
     Sensor *aux = lista;
     while (aux) {
@@ -168,14 +179,14 @@ void listar_sensores(Sensor *lista, Setor *listaSetores) {
         imprimir_centralizado(aux->nome, 28); printf(" | ");
         imprimir_centralizado(setorbuf, 6); printf(" |\n");
 
-        /* mostrar leituras do sensor (se existirem) */
         if (listaSetores) {
             Setor *s = buscar_setor(listaSetores, aux->setor);
             if (s && s->leituras) {
                 Leitura *lt = s->leituras;
                 while (lt) {
                     if (lt->sensorCodigo == aux->codigo) {
-                        printf("    -> Leitura %s: %.2f | Leitura %s: %.2f\n", lt->hora1, lt->leitura1, lt->hora2, lt->leitura2);
+                        printf("      -> Leitura %s: %.2f | Leitura %s: %.2f\n",
+                               lt->hora1, lt->leitura1, lt->hora2, lt->leitura2);
                     }
                     lt = lt->prox;
                 }
@@ -184,13 +195,6 @@ void listar_sensores(Sensor *lista, Setor *listaSetores) {
         aux = aux->prox;
     }
     printf("+--------+------------------------------+--------+\n");
-}
-
-
-int buscar_sensor_rec(Sensor *lista, int codigo) {
-    if (!lista) return 0;
-    if (lista->codigo == codigo) return 1;
-    return buscar_sensor_rec(lista->prox, codigo);
 }
 
 void atualizar_qtd(Setor *lista, int codigo, int valor) {
@@ -225,10 +229,28 @@ int salvar_setores(const char *nome, Setor *lista) {
     while (aux) {
         struct { int codigo; char nome[30]; char desc[40]; int qtd; } reg;
         reg.codigo = aux->codigo;
-        strcpy(reg.nome, aux->nome);
-        strcpy(reg.desc, aux->desc);
+        strncpy(reg.nome, aux->nome, 30);
+        strncpy(reg.desc, aux->desc, 40);
         reg.qtd = aux->qtd;
         fwrite(&reg, sizeof(reg), 1, arq);
+
+        /* salvar leituras do setor */
+        int countLeituras = 0;
+        Leitura *lt = aux->leituras;
+        while (lt) { countLeituras++; lt = lt->prox; }
+        fwrite(&countLeituras, sizeof(int), 1, arq);
+        lt = aux->leituras;
+        while (lt) {
+            struct { int sensorCodigo; int setorCodigo; float l1; float l2; char h1[6]; char h2[6]; } regL;
+            regL.sensorCodigo = lt->sensorCodigo;
+            regL.setorCodigo = lt->setorCodigo;
+            regL.l1 = lt->leitura1;
+            regL.l2 = lt->leitura2;
+            strncpy(regL.h1, lt->hora1, 6);
+            strncpy(regL.h2, lt->hora2, 6);
+            fwrite(&regL, sizeof(regL), 1, arq);
+            lt = lt->prox;
+        }
         aux = aux->prox;
     }
     fclose(arq);
@@ -242,6 +264,23 @@ int carregar_setores(const char *nome, Setor **lista) {
     while (fread(&reg, sizeof(reg), 1, arq) == 1) {
         Setor *s = criar_setor(reg.codigo, reg.nome, reg.desc);
         s->qtd = reg.qtd;
+
+        int countLeituras = 0;
+        if (fread(&countLeituras, sizeof(int), 1, arq) != 1) countLeituras = 0;
+        for (int i = 0; i < countLeituras; i++) {
+            struct { int sensorCodigo; int setorCodigo; float l1; float l2; char h1[6]; char h2[6]; } regL;
+            if (fread(&regL, sizeof(regL), 1, arq) != 1) break;
+            Leitura *lt = malloc(sizeof(Leitura));
+            if (!lt) break;
+            lt->sensorCodigo = regL.sensorCodigo;
+            lt->setorCodigo = regL.setorCodigo;
+            lt->leitura1 = regL.l1;
+            lt->leitura2 = regL.l2;
+            strncpy(lt->hora1, regL.h1, 6);
+            strncpy(lt->hora2, regL.h2, 6);
+            lt->prox = s->leituras;
+            s->leituras = lt;
+        }
         adicionar_setor(lista, s);
     }
     fclose(arq);
@@ -255,7 +294,7 @@ int salvar_sensores(const char *nome, Sensor *lista) {
     while (aux) {
         struct { int codigo; char nome[30]; int setor; } reg;
         reg.codigo = aux->codigo;
-        strcpy(reg.nome, aux->nome);
+        strncpy(reg.nome, aux->nome, 30);
         reg.setor = aux->setor;
         fwrite(&reg, sizeof(reg), 1, arq);
         aux = aux->prox;
@@ -355,6 +394,13 @@ void liberar_memoria(Sensor **listaSensores, Setor **listaSetores) {
     while (*listaSetores) {
         se = *listaSetores;
         *listaSetores = (*listaSetores)->prox;
+        /* liberar leituras do setor */
+        Leitura *lt = se->leituras;
+        while (lt) {
+            Leitura *tmp = lt;
+            lt = lt->prox;
+            free(tmp);
+        }
         free(se);
     }
 }
