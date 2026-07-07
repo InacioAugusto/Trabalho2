@@ -41,7 +41,6 @@ int buscar_sensor_rec(Sensor *lista, int codigo);
 Sensor *buscar_sensor(Sensor *lista, int codigo);
 
 int adicionar_leitura(Setor *listaSetores, int setorCodigo, int sensorCodigo, float l1, float l2, const char *h1, const char *h2);
-
 void atualizar_qtd(Setor *lista, int codigo, int valor);
 int remover_sensor(Sensor **listaSensores, Setor **listaSetores, int codigo);
 
